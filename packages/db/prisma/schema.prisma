@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum ModelType {
+  man
+  women
+  other
+}
+
+enum ModelEthnicity {
+  american
+  african
+  asian
+}
+
+model User {
+  id             String  @unique @default(uuid())
+  username       String
+  profilePicture String?
+  email          String
+  Model          Model[]
+}
+
+model Model {
+  id              String            @id @default(uuid())
+  name            String
+  age             Int
+  ethnicity       ModelEthnicity
+  type            ModelType
+  images          TrainingImages[]
+  userId          String
+  User            User              @relation(fields: [userId], references: [id])
+  GeneratedImages GeneratedImages[]
+}
+
+model TrainingImages {
+  id      String  @id @default(uuid())
+  image   String
+  modelId String?
+  model   Model?  @relation(fields: [modelId], references: [id])
+}
+
+model GeneratedImages {
+  id      String @id @default(uuid())
+  image   String
+  modelId String
+  model   Model  @relation(fields: [modelId], references: [id])
+}
+
+model Packs {
+  id   String @id @default(uuid())
+  name String
+
+  Prompts Prompts[]
+}
+
+model Prompts {
+  prompId String @id @default(uuid())
+  prompt  String
+  packId  String
+  pack    Packs  @relation(fields: [packId], references: [id])
+
+}
+
+// So firstly create a model that is train model using that Model Db thing you created  u give the images to it to train the model 
+// after traing the model the model is generated we need to created different models because there could be diff persons 
+// then we give prompt after selecting the model and it will generate images based on that model
+
+// we have a pack which in that case is going to be have some prelisted prompts
+// after clicking on pack thing we have to select out model first and then that images will come in that pac
