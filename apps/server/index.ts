@@ -1,5 +1,6 @@
 import {Elysia} from "elysia"
 import { aiRoutes } from "routes/aiRoute"
+
 let app = new Elysia()
 
 .use(aiRoutes)

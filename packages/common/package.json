@@ -13,6 +13,8 @@
     "zod": "^4.0.5"
   },
   "exports":{
-    ".":"./index.ts"
-  }
+    ".": {
+      "import": "./index.ts",
+      "types": "./index.ts"
+    }}
 }

@@ -32,14 +32,18 @@ model User {
   profilePicture String?
   email          String
   Model          Model[]
+
 }
+
+
+ 
 
 model Model {
   id              String            @id @default(uuid())
   name            String
+  type            ModelType
   age             Int
   ethnicity       ModelEthnicity
-  type            ModelType
   images          TrainingImages[]
   userId          String
   User            User              @relation(fields: [userId], references: [id])
