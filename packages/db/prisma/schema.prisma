@@ -63,11 +63,14 @@ model TrainingImages {
 model GeneratedImages {
   id      String @id @default(uuid())
   image   String
+  prompt  String
   modelId String
   userId  String
   status  Status
   model   Model  @relation(fields: [modelId], references: [id])
   user    User   @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 }
 
 model Packs {
