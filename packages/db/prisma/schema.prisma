@@ -25,10 +25,10 @@ enum ModelEthnicity {
   asian
 }
 
-enum Status{
-  generating 
-  finished
-  canceled
+enum Status {
+  pending
+  generated
+  failed
 }
 
 model User {
@@ -59,8 +59,6 @@ model TrainingImages {
   modelId String?
   model   Model?  @relation(fields: [modelId], references: [id])
 }
-
-
 
 model GeneratedImages {
   id      String @id @default(uuid())

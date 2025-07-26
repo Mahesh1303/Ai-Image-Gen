@@ -41,6 +41,8 @@ export const AiHandler = {
     }
   },
 
+  
+
   handleGenerateAi: async (ctx: Context) => {
     try {
       const parsedBody = GenerateImage.safeParse(ctx.body);
