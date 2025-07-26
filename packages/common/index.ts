@@ -1,6 +1,10 @@
 import { z } from "zod"
 
 export const TrainModel = z.object({
+  userId: z.string()
+    .min(1, "User ID is required")
+    .uuid("User ID must be a valid UUID"),
+
   name: z.string()
     .min(1, "Name is required")
     .max(100, "Name must be less than 100 characters"),
@@ -21,6 +25,8 @@ export const TrainModel = z.object({
   images: z.array(z.string().url("Each image must be a valid URL"))
     .min(1, "At least one image is required")
     .max(10, "Maximum 10 images allowed")
+
+  
 })
 
 export const GenerateImage = z.object({

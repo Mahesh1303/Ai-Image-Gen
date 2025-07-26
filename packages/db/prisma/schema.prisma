@@ -13,7 +13,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 enum ModelType {
   man
   women
@@ -26,6 +25,12 @@ enum ModelEthnicity {
   asian
 }
 
+enum Status{
+  generating 
+  finished
+  canceled
+}
+
 model User {
   id             String  @unique @default(uuid())
   username       String
@@ -33,10 +38,8 @@ model User {
   email          String
   Model          Model[]
 
+  GeneratedImages GeneratedImages[]
 }
-
-
- 
 
 model Model {
   id              String            @id @default(uuid())
@@ -45,9 +48,9 @@ model Model {
   age             Int
   ethnicity       ModelEthnicity
   images          TrainingImages[]
+  GeneratedImages GeneratedImages[]
   userId          String
   User            User              @relation(fields: [userId], references: [id])
-  GeneratedImages GeneratedImages[]
 }
 
 model TrainingImages {
@@ -57,11 +60,16 @@ model TrainingImages {
   model   Model?  @relation(fields: [modelId], references: [id])
 }
 
+
+
 model GeneratedImages {
   id      String @id @default(uuid())
   image   String
   modelId String
+  userId  String
+  status  Status
   model   Model  @relation(fields: [modelId], references: [id])
+  user    User   @relation(fields: [userId], references: [id])
 }
 
 model Packs {
@@ -76,7 +84,6 @@ model Prompts {
   prompt  String
   packId  String
   pack    Packs  @relation(fields: [packId], references: [id])
-
 }
 
 // So firstly create a model that is train model using that Model Db thing you created  u give the images to it to train the model 
