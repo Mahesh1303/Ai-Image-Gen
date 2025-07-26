@@ -1,9 +1,10 @@
 import { prismaClient } from "db";
 // import {prismaClient} from "db"
-import type { Context } from "elysia";
+import { status, type Context } from "elysia";
 import { TrainModel, GenerateImage, GeneratedImagesFromPack } from "common";
+import { metadata } from "../../web/app/layout";
 
-const USER = "kjnsdadjsasjdsa"
+const USER = "kjnsdadjsasjdsa";
 
 export const AiHandler = {
   handleTrainAi: async (ctx: Context) => {
@@ -14,7 +15,7 @@ export const AiHandler = {
         return { message: "Invalid Credentials " };
       }
       const { name, type, age, ethnicity, images } = ParsedBody.data;
-      const result =await prismaClient.model.create({
+      const result = await prismaClient.model.create({
         data: {
           name,
           type,
@@ -31,7 +32,7 @@ export const AiHandler = {
       ctx.set.status = 200;
       return {
         message: "AI training initiated Successfully",
-        modelId:result.id
+        modelId: result.id,
       };
     } catch (error) {
       ctx.set.status = 500;
@@ -41,8 +42,6 @@ export const AiHandler = {
     }
   },
 
-  
-
   handleGenerateAi: async (ctx: Context) => {
     try {
       const parsedBody = GenerateImage.safeParse(ctx.body);
@@ -51,10 +50,136 @@ export const AiHandler = {
         return { message: "Invalid Credentials" };
       }
 
+      const { prompt, modelId } = parsedBody.data;
+
+      const result = await prismaClient.generatedImages.create({
+        data: {
+          modelId,
+          prompt,
+          userId: USER,
+          image: "",
+          status: "pending",
+        },
+      });
+
       ctx.set.status = 200;
       return {
         message: "Images Generating Succesfully",
+        imageID: result.id,
       };
-    } catch (error) {}
+    } catch (error) {
+      ctx.set.status = 500;
+      return {
+        message: "Failed TO Generate Model Internal Server Error",
+      };
+    }
+  },
+
+  handlePackGenerate: async (ctx: Context) => {
+    try {
+      const parsedImages = GeneratedImagesFromPack.safeParse(ctx.body);
+      if (!parsedImages) {
+        ctx.set.status = 400;
+        return {
+          message: "Invalid Credentials",
+        };
+      }
+
+      const { packId, modelId } = parsedImages.data;
+
+      const prompts = await prismaClient.prompts.findMany({
+        where: {
+          packId: packId,
+        },
+      });
+
+      const result = await prismaClient.generatedImages.createManyAndReturn({
+        data: prompts.map((prompt) => ({
+          prompt: prompt.prompt,
+          modelId,
+          userId: USER,
+          image: "",
+          status: "pending",
+        })),
+      });
+
+      ctx.set.status = 200;
+      return {
+        message: "Images Generated Successfully",
+        images: result.map((img) => {
+          img.id;
+        }),
+      };
+    } catch (error) {
+      ctx.set.status = 500;
+      return {
+        message: "Failed TO generate PAck Internal Server Errror",
+      };
+    }
+  },
+
+  handleGetPacks: async (ctx: Context) => {
+    try {
+      const result = await prismaClient.packs.findMany({});
+      if (!result) {
+        ctx.set.status = 400;
+        return {
+          message: "Unable to fetch any packs",
+        };
+      }
+      ctx.set.status = 200;
+      return {
+        message: "Packs fetched successfully",
+        packs: result,
+      };
+    } catch (error) {
+      ctx.set.status = 500;
+      return {
+        message: "Failed to fetch packs Internal Server error",
+      };
+    }
+  },
+
+  handleGetImage: async (ctx: Context) => {
+    let img: string[] = [];
+
+    if (typeof ctx.query.images === "string" && ctx.query.images.trim()) {
+      img = ctx.query.images.split(",").filter((id) => id.trim());
+    } else if (Array.isArray(ctx.query.images)) {
+      img = ctx.query.images.filter((id) => id && id.trim());
+    }
+
+    const limit = parseInt(ctx.query.limit ?? "10");
+    const offset = parseInt(ctx.query.offset ?? "0");
+
+    console.log(img);
+    const whereClause: any = { userId: USER };
+    if (img.length > 0) {
+      whereClause.id = { in: img };
+    }
+
+    const imagesData = await prismaClient.generatedImages.findMany({
+      where: whereClause,
+      skip: offset,
+      take: limit,
+    });
+
+    ctx.set.status = 200;
+
+    return {
+      images: imagesData,
+    };
+  },
+
+  handleWebhook: async (ctx: Context) => {
+    try {
+      const body = ctx.body;
+      console.log("Webhook received:", body);
+      ctx.set.status = 200;
+      return { message: "Webhook processed successfully" };
+    } catch (error) {
+      ctx.set.status = 500;
+      return { message: "Failed to process webhook" };
+    }
   },
 };
