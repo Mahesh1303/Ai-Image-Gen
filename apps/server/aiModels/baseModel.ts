@@ -1,15 +1,6 @@
-export  class BaseModel{
-    constructor(){
+export abstract class BaseModel {
+  constructor() {}
 
-    }
-
-    private async generateImage(prompt: string, paths: string ){
-
-        
-
-    }
-    private async trainModel(images: string [], triggeredWord :  string){
-
-
-    }
+  abstract generateImage(prompt: string, paths: string): Promise<any>
+  abstract trainModel(zipUrl: string, triggeredWord: string) :Promise<any>
 }
