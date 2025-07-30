@@ -45,7 +45,7 @@ export const AiHandler = {
   handleGenerateAi: async (ctx: Context) => {
     try {
       const parsedBody = GenerateImage.safeParse(ctx.body);
-      if (!parsedBody) {
+      if (!parsedBody.success) {
         ctx.set.status = 400;
         return { message: "Invalid Credentials" };
       }
@@ -78,12 +78,13 @@ export const AiHandler = {
   handlePackGenerate: async (ctx: Context) => {
     try {
       const parsedImages = GeneratedImagesFromPack.safeParse(ctx.body);
-      if (!parsedImages) {
+      if (!parsedImages.success) {
         ctx.set.status = 400;
         return {
           message: "Invalid Credentials",
         };
       }
+      
 
       const { packId, modelId } = parsedImages.data;
 
