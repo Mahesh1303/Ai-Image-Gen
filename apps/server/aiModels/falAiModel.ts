@@ -1,34 +1,46 @@
 import { BaseModel } from "./baseModel";
 import { fal } from "@fal-ai/client";
+import { status } from "elysia";
 
 export class FalAiModel extends BaseModel {
   constructor() {
     super();
   }
 
-   async generateImage(prompt: string, tensorPath: string) {
-    const {request_id, response_url, status} =await fal.queue.submit("fal-ai/flux-lora", {
-      input: {
-        prompt: prompt,
-        loras: [{ path: tensorPath, scale: 1 }],
-      },
-    });
-    return {request_id,status,response_url};
+  async generateImage(prompt: string, tensorPath: string) {
+    const { request_id, response_url, status } = await fal.queue.submit(
+      "fal-ai/flux-lora",
+      {
+        input: {
+          prompt: prompt,
+          loras: [{ path: tensorPath, scale: 1 }],
+        },
+      }
+    );
+    return { request_id, status, response_url };
   }
-  
 
   async trainModel(zipUrl: string, triggeredWord: string) {
-    const { request_id, response_url , status} = await fal.queue.submit(
+    const { request_id, response_url, status } = await fal.queue.submit(
       "fal-ai/flux-lora-fast-training",
       {
         input: {
           images_data_url: zipUrl,
-          trigger_word: triggeredWord
+          trigger_word: triggeredWord,
         },
         webhookUrl: `${process.env.FAL_WEBHOOK_URL}/webhook`,
       }
     );
 
-    return {request_id,response_url, status}
+    return { request_id, response_url, status };
+  }
+
+  async generateImagesSyncPack(prompt: string, tensorPath: string) {
+    const result = await fal.subscribe("fal-ai/flux-lora", {
+      input: {
+        prompt:prompt,
+        loras: [{ path: tensorPath }],
+      },
+    });
   }
 }
