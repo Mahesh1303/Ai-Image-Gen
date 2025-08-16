@@ -1,12 +1,15 @@
 import { prismaClient } from "db";
-// import {prismaClient} from "db"
 import { status, type Context } from "elysia";
 import { TrainModel, GenerateImage, GeneratedImagesFromPack } from "common";
-import { metadata } from "../../web/app/layout";
+import { FalAiModel } from '../aiModels/falAiModel';
+import { fal } from "@fal-ai/client";
 
 const USER = "kjnsdadjsasjdsa";
 
+const falAimodel= new  FalAiModel()
 export const AiHandler = {
+
+
   handleTrainAi: async (ctx: Context) => {
     try {
       const ParsedBody = TrainModel.safeParse(ctx.body);
@@ -15,6 +18,8 @@ export const AiHandler = {
         return { message: "Invalid Credentials " };
       }
       const { name, type, age, ethnicity, images } = ParsedBody.data;
+      const {request_id, response_url, status} =await falAimodel.trainModel(ParsedBody.data.images[],ParsedBody.data.name)
+
       const result = await prismaClient.model.create({
         data: {
           name,
@@ -29,7 +34,10 @@ export const AiHandler = {
           },
         },
       });
+
       ctx.set.status = 200;
+
+      
       return {
         message: "AI training initiated Successfully",
         modelId: result.id,
@@ -77,8 +85,8 @@ export const AiHandler = {
 
   handlePackGenerate: async (ctx: Context) => {
     try {
-      const parsedImages = GeneratedImagesFromPack.safeParse(ctx.body);
-      if (!parsedImages.success) {
+      const parsedBody = GeneratedImagesFromPack.safeParse(ctx.body);
+      if (!parsedBody.success) {
         ctx.set.status = 400;
         return {
           message: "Invalid Credentials",
@@ -86,7 +94,7 @@ export const AiHandler = {
       }
       
 
-      const { packId, modelId } = parsedImages.data;
+      const { packId, modelId } = parsedBody.data;
 
       const prompts = await prismaClient.prompts.findMany({
         where: {
