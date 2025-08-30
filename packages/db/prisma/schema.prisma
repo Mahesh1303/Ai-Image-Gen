@@ -25,10 +25,13 @@ enum ModelEthnicity {
   asian
 }
 
+
+    // status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED";
+
 enum Status {
-  pending
-  generated
-  failed
+  IN_QUEUE
+  IN_PROGRESS
+  COMPLETED
 }
 
 model User {

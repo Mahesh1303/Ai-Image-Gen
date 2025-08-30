@@ -60,10 +60,9 @@ export const AiHandler = {
 
       const { prompt, modelId } = parsedBody.data;
 
-      // const { request_id, status, response_url }= falAimodel.generateImage(prompt:prompt,tensorPath=modelId)
 
-      const { request_id, status, response_url } =
-        await falAimodel.generateImage(prompt, modelId);
+      const { request_id, status, response_url } = await falAimodel.generateImage(prompt, modelId);
+      
       const data = await fal.queue.result("fal-ai/flux-lora", {
         requestId: request_id,
       });
@@ -76,7 +75,7 @@ export const AiHandler = {
           prompt,
           userId: USER,
           image: "",
-          status: "pending",
+          status: status,
         },
       });
 
@@ -117,7 +116,7 @@ export const AiHandler = {
           modelId,
           userId: USER,
           image: "",
-          status: "pending",
+          status: "COMPLETED",
         })),
       });
 
