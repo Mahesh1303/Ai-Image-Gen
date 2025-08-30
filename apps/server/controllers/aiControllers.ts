@@ -1,15 +1,13 @@
 import { prismaClient } from "db";
 import { status, type Context } from "elysia";
 import { TrainModel, GenerateImage, GeneratedImagesFromPack } from "common";
-import { FalAiModel } from '../aiModels/falAiModel';
+import { FalAiModel } from "../aiModels/falAiModel";
 import { fal } from "@fal-ai/client";
 
 const USER = "kjnsdadjsasjdsa";
 
-const falAimodel= new  FalAiModel()
+const falAimodel = new FalAiModel();
 export const AiHandler = {
-
-
   handleTrainAi: async (ctx: Context) => {
     try {
       const ParsedBody = TrainModel.safeParse(ctx.body);
@@ -18,7 +16,10 @@ export const AiHandler = {
         return { message: "Invalid Credentials " };
       }
       const { name, type, age, ethnicity, images } = ParsedBody.data;
-      const {request_id, response_url, status} =await falAimodel.trainModel(ParsedBody.data.images[],ParsedBody.data.name)
+      const { request_id, response_url, status } = await falAimodel.trainModel(
+        String(ParsedBody?.data?.images[0]),
+        ParsedBody.data.name
+      );
 
       const result = await prismaClient.model.create({
         data: {
@@ -37,7 +38,6 @@ export const AiHandler = {
 
       ctx.set.status = 200;
 
-      
       return {
         message: "AI training initiated Successfully",
         modelId: result.id,
@@ -60,6 +60,16 @@ export const AiHandler = {
 
       const { prompt, modelId } = parsedBody.data;
 
+      // const { request_id, status, response_url }= falAimodel.generateImage(prompt:prompt,tensorPath=modelId)
+
+      const { request_id, status, response_url } =
+        await falAimodel.generateImage(prompt, modelId);
+      const data = await fal.queue.result("fal-ai/flux-lora", {
+        requestId: request_id,
+      });
+
+      console.log(data);
+      console.log(data.data);
       const result = await prismaClient.generatedImages.create({
         data: {
           modelId,
@@ -92,7 +102,6 @@ export const AiHandler = {
           message: "Invalid Credentials",
         };
       }
-      
 
       const { packId, modelId } = parsedBody.data;
 
