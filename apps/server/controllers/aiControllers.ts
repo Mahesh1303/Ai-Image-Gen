@@ -7,6 +7,9 @@ import { fal } from "@fal-ai/client";
 const USER = "kjnsdadjsasjdsa";
 
 const falAimodel = new FalAiModel();
+
+
+// Training Model Loras
 export const AiHandler = {
   handleTrainAi: async (ctx: Context) => {
     try {
@@ -15,24 +18,25 @@ export const AiHandler = {
         ctx.set.status = 400;
         return { message: "Invalid Credentials " };
       }
-      const { name, type, age, ethnicity, images } = ParsedBody.data;
+      const { name, type, age, ethnicity, zipUrl } = ParsedBody.data;
       const { request_id, response_url, status } = await falAimodel.trainModel(
-        String(ParsedBody?.data?.images[0]),
-        ParsedBody.data.name
+        zipUrl,
+        name
       );
 
-      const result = await prismaClient.model.create({
+      const data = await fal.queue.result("fal-ai/flux-lora-fast-training", {
+        requestId: request_id,
+      });
+
+      console.log(data);
+      const model = await prismaClient.model.create({
         data: {
           name,
           type,
           age,
           ethnicity,
           userId: USER,
-          images: {
-            create: images.map((url: string) => ({
-              image: url,
-            })),
-          },
+          tensorPath : response_url
         },
       });
 
@@ -40,7 +44,7 @@ export const AiHandler = {
 
       return {
         message: "AI training initiated Successfully",
-        modelId: result.id,
+        modelId: model.id
       };
     } catch (error) {
       ctx.set.status = 500;
@@ -50,6 +54,9 @@ export const AiHandler = {
     }
   },
 
+
+
+  //  Generating Images from Prompt and Model ID
   handleGenerateAi: async (ctx: Context) => {
     try {
       const parsedBody = GenerateImage.safeParse(ctx.body);
@@ -60,9 +67,9 @@ export const AiHandler = {
 
       const { prompt, modelId } = parsedBody.data;
 
+      const { request_id, status, response_url } =
+        await falAimodel.generateImage(prompt, modelId);
 
-      const { request_id, status, response_url } = await falAimodel.generateImage(prompt, modelId);
-      
       const data = await fal.queue.result("fal-ai/flux-lora", {
         requestId: request_id,
       });
@@ -92,6 +99,8 @@ export const AiHandler = {
     }
   },
 
+
+  // Generating Images from Pack ID
   handlePackGenerate: async (ctx: Context) => {
     try {
       const parsedBody = GeneratedImagesFromPack.safeParse(ctx.body);
@@ -135,6 +144,38 @@ export const AiHandler = {
     }
   },
 
+
+handleGetModels: async (ctx: Context) => {
+  try {
+    const result = await prismaClient.model.findMany({
+      where: {
+        userId: USER
+      }
+    });
+    if(!result){
+      ctx.set.status = 400;
+      return {
+        message : "Unable to fetch any models"
+      }
+    }
+    ctx.set.status = 200;
+    return {
+      message : "Models fetched successfully",
+      models : result
+    }
+  } catch (error) {
+    ctx.set.status = 500;
+    return {
+      message : "Failed to fetch models Internal Server error"
+    }
+  }
+
+},
+
+    
+
+
+  // Getting All Packs
   handleGetPacks: async (ctx: Context) => {
     try {
       const result = await prismaClient.packs.findMany({});
@@ -157,6 +198,8 @@ export const AiHandler = {
     }
   },
 
+
+  // Getting Generated Images
   handleGetImage: async (ctx: Context) => {
     let img: string[] = [];
 
@@ -188,7 +231,13 @@ export const AiHandler = {
     };
   },
 
-  handleWebhook: async (ctx: Context) => {
+
+
+
+  // Webhook Handler for Modle training it will hit once the model training is completed and it will return a request id or say tensor path add this to model table's tensor path column
+  // first check the ctx and add the relevant data 
+
+  handleModelWebhook: async (ctx: Context) => {
     try {
       const body = ctx.body;
       console.log("Webhook received:", body);
@@ -199,4 +248,21 @@ export const AiHandler = {
       return { message: "Failed to process webhook" };
     }
   },
+
+  // Webhook Handler for Image generation it will hit once the image generation is completed and it will return a request id or say image path add this to generated images table's image column
+  // first check the ctx and then add the relevant data 
+  handleImageWebhook: async (ctx: Context) => {
+    try {
+      const body = ctx.body;
+      console.log("Webhook received:", body);
+      ctx.set.status = 200;
+      return { message: "Webhook processed successfully" };
+    } catch (error) {
+      ctx.set.status = 500;
+      return { message: "Failed to process webhook" };
+    }
+  },
+
+
+
 };
