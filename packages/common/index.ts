@@ -22,9 +22,7 @@ export const TrainModel = z.object({
     message: "Ethnicity must be 'american', 'african', or 'asian'" 
   }),
   
-  images: z.array(z.string().url("Each image must be a valid URL"))
-    .min(1, "At least one image is required")
-    .max(10, "Maximum 10 images allowed")
+  zipUrl:z.string().url("Must be a valid URL")
 
   
 })

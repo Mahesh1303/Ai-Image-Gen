@@ -53,6 +53,7 @@ model Model {
   images          TrainingImages[]
   GeneratedImages GeneratedImages[]
   userId          String
+  tensorPath      String
   User            User              @relation(fields: [userId], references: [id])
 }
 
