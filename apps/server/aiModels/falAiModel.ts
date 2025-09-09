@@ -1,6 +1,5 @@
 import { BaseModel } from "./baseModel";
 import { fal } from "@fal-ai/client";
-import { status } from "elysia";
 
 export class FalAiModel extends BaseModel {
   constructor() {
@@ -45,5 +44,18 @@ export class FalAiModel extends BaseModel {
         loras: [{ path: tensorPath }],
       },
     });
+  }
+
+  async generateThumbnailForModel(tensorPath:string){
+      const result = await fal.subscribe("fal-ai/flux-lora", {
+      input: {
+        prompt:"Generate a head shot for this user in front of a white background",
+        loras: [{ path: tensorPath, scale: 1 }],
+      },
+    });
+    return {
+      imageUrl: result.data.images[0]?.url,
+    };
+  
   }
 }
