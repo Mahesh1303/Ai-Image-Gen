@@ -4,4 +4,5 @@ export abstract class BaseModel {
   abstract generateImage(prompt: string, tensorPath: string): Promise<any>
   abstract trainModel(zipUrl: string, triggeredWord: string) :Promise<any>
   abstract generateImagesSyncPack(prompt: string, tensorPath: string): Promise<any>
+  abstract generateThumbnailForModel(tensorPath: String):  Promise<any>
 }

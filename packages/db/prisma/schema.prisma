@@ -44,17 +44,19 @@ model User {
 }
 
 model Model {
-  id              String            @id @default(uuid())
-  name            String
+  id                  String            @id @default(uuid())
+  name                String
+  status              Status
+  thumbnail           String
   falAiModelRequestId String
-  type            ModelType
-  age             Int
-  ethnicity       ModelEthnicity
-  zipUrl          String
-  generatedImages GeneratedImages[]
-  userId          String
-  tensorPath      String
-  User            User              @relation(fields: [userId], references: [id])
+  type                ModelType
+  age                 Int
+  ethnicity           ModelEthnicity
+  zipUrl              String
+  generatedImages     GeneratedImages[]
+  userId              String
+  tensorPath          String
+  User                User              @relation(fields: [userId], references: [id])
 }
 
 // model TrainingImages {
@@ -65,17 +67,17 @@ model Model {
 // }
 
 model GeneratedImages {
-  id             String   @id @default(uuid())
-  image          String
-  prompt         String
-  modelId        String
-  userId         String
-  status         Status
+  id                  String   @id @default(uuid())
+  image               String
+  prompt              String
+  modelId             String
+  userId              String
+  status              Status
   falAiImageRequestId String?
-  model          Model    @relation(fields: [modelId], references: [id])
-  user           User     @relation(fields: [userId], references: [id])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now())
+  model               Model    @relation(fields: [modelId], references: [id])
+  user                User     @relation(fields: [userId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now())
 
   @@index([falAiImageRequestId])
 }

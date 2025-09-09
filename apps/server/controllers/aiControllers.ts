@@ -1,8 +1,7 @@
 import { prismaClient } from "db";
-import { status, type Context } from "elysia";
+import {  status, type Context } from "elysia";
 import { TrainModel, GenerateImage, GeneratedImagesFromPack } from "common";
 import { FalAiModel } from "../aiModels/falAiModel";
-import { fal } from "@fal-ai/client";
 
 const USER = "kjnsdadjsasjdsa";
 
@@ -10,6 +9,7 @@ const falAimodel = new FalAiModel();
 
 // Training Model Loras
 export const AiHandler = {
+
   handleTrainAi: async (ctx: Context) => {
     try {
       const ParsedBody = TrainModel.safeParse(ctx.body);
@@ -23,11 +23,6 @@ export const AiHandler = {
         name
       );
 
-      const data = await fal.queue.result("fal-ai/flux-lora-fast-training", {
-        requestId: request_id,
-      });
-
-      console.log(data);
       const model = await prismaClient.model.create({
         data: {
           name,
@@ -35,7 +30,8 @@ export const AiHandler = {
           age,
           ethnicity,
           userId: USER,
-          tensorPath: response_url,
+          falAiModelRequestId: request_id,
+          status: status,
         },
       });
 
@@ -64,30 +60,29 @@ export const AiHandler = {
 
       const { prompt, modelId } = parsedBody.data;
 
-      const model_Id = await prismaClient.model.findUnique({
+      const model = await prismaClient.model.findUnique({
         where: {
           id: modelId,
         },
       });
+      if (!model || !model.tensorPath) {
+        ctx.set.status = 400;
+        return {
+          message: "No Model Available",
+        };
+      }
 
       const { request_id, status, response_url } =
-        await falAimodel.generateImage(prompt, modelId);
-
-      // const data = await fal.queue.result("fal-ai/flux-lora", {
-      //   requestId: request_id,
-      // });
-
-      // console.log(data);
-      // console.log(data.data);
+        await falAimodel.generateImage(prompt, model?.tensorPath);
 
       const result = await prismaClient.generatedImages.create({
         data: {
-          modelId: model_Id,
+          modelId: model?.id,
           prompt,
           userId: USER,
           image: "",
           status: status,
-          falAiRequestId: request_id,
+          falAiImageRequestId: request_id,
         },
       });
 
@@ -116,20 +111,41 @@ export const AiHandler = {
       }
 
       const { packId, modelId } = parsedBody.data;
+      
+     
+      const model = await prismaClient.model.findFirst({
+        where:{
+          id:modelId
+        }
+      })
 
-      const prompts = await prismaClient.prompts.findMany({
-        where: {
-          packId: packId,
-        },
-      });
+      if (!model) {
+        ctx.set.status=400
+    return {
+      message:"No Model Present"
+    };
+  }
+  const prompts = await prismaClient.prompts.findMany({
+    where: {
+      packId: packId,
+    },
+  });
+
+    let requestIds:{request_id: string, status:string}[] = await Promise.all(
+      prompts.map(prompt =>
+        
+        falAimodel.generateImage(prompt.prompt,model.tensorPath))
+    ) 
+
 
       const result = await prismaClient.generatedImages.createManyAndReturn({
-        data: prompts.map((prompt) => ({
+        data: prompts.map((prompt,index) => ({
           prompt: prompt.prompt,
           modelId,
           userId: USER,
           image: "",
-          status: "COMPLETED",
+          status:requestIds[index]?.status,
+          falAiImageRequestId:requestIds[index]?.request_id
         })),
       });
 
@@ -234,62 +250,99 @@ export const AiHandler = {
   // first check the ctx and add the relevant data
   handleModelWebhook: async (ctx: Context) => {
     try {
-        console.log("====================Received training webhook====================");
+      console.log(
+        "====================Received training webhook===================="
+      );
       const body = ctx.body;
-      
+      const requestId = body.request_id;
+      if (body.status == "ERROR") {
+        ctx.set.status = 400;
+        await prismaClient.model.updateMany({
+          where: {
+            falAiModelRequestId: requestId,
+          },
+          data: {
+            status: "COMPLETED",
+          },
+        });
+        ctx.set.status = 400;
+        return {
+          message: "Failed TO generate Model",
+          data: body,
+        };
+      }
 
+      const { imageUrl } = await falAimodel.generateThumbnailForModel(
+        body.payload.diffusers_lora_file.url
+      );
 
-      console.log("Webhook received:", body);
+      await prismaClient.model.updateMany({
+        where: {
+          falAiModelRequestId: requestId,
+        },
+        data: {
+          tensorPath: body.payload.diffusers_lora_file.url,
+          status: "COMPLETED",
+          thumbnail: imageUrl,
+        },
+      });
+
       ctx.set.status = 200;
-      return { message: "Webhook processed successfully" };
+      return {
+        message: "Webhook processed successfully Model Trained Successfully",
+      };
     } catch (error) {
       ctx.set.status = 500;
-      return { message: "Failed to process webhook" };
+      return { message: "Failed to process webhook", error: error };
     }
   },
-  
+
   // Webhook Handler for Image generation it will hit once the image generation is completed and it will return a request id or say image path add this to generated images table's image column
   // first check the ctx and then add the relevant data
-  
-    handleImageWebhook: async (ctx: Context) => {
-  
-      try {
-        console.log("====================Received Image Generation Webhook====================");
-        const body = ctx.body;
-        const requestId = body.request_id;
-        if (body.status == "ERROR") {
-          ctx.set.status = 400;
-  
-          await prismaClient.generatedImages.updateMany({
-            where: {
-              falAiImageRequestId: requestId,
-            },
-            data: {
-              status: "COMPLETED",
-              image: body.payload.images[0].url,
-            },
-          });
-          return {
-            message: "Failed to Generate image FalAi Error",
-          };
-        }
-  
-        ctx.set.status = 200;
+
+  handleImageWebhook: async (ctx: Context) => {
+    try {
+      console.log(
+        "====================Received Image Generation Webhook===================="
+      );
+      const body = ctx.body;
+      const requestId = body.request_id;
+      if (body.status == "ERROR") {
+        ctx.set.status = 400;
+
         await prismaClient.generatedImages.updateMany({
           where: {
             falAiImageRequestId: requestId,
           },
           data: {
             status: "COMPLETED",
-            image: body.payload.images[0].url,
           },
         });
-  
-        console.log("Webhook received:", body);
-        return { message: "Webhook processed successfully" };
-      } catch (error) {
-        ctx.set.status = 500;
-        return { message: "Internal Server Error Failed to process webhook" };
+        return {
+          message: "Failed to Generate image FalAi Error",
+          data: body,
+        };
       }
-    },
+
+      ctx.set.status = 200;
+      await prismaClient.generatedImages.updateMany({
+        where: {
+          falAiImageRequestId: requestId,
+        },
+        data: {
+          status: "COMPLETED",
+          image: body.payload.images[0].url,
+        },
+      });
+
+      console.log("Webhook received:", body);
+      return { message: "Webhook processed successfully" };
+    } catch (error) {
+      ctx.set.status = 500;
+      return {
+        message: "Internal Server Error Failed to process webhook",
+        error: error,
+      };
+    }
+  },
 };
