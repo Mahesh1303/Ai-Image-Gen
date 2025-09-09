@@ -8,7 +8,6 @@ const USER = "kjnsdadjsasjdsa";
 
 const falAimodel = new FalAiModel();
 
-
 // Training Model Loras
 export const AiHandler = {
   handleTrainAi: async (ctx: Context) => {
@@ -36,7 +35,7 @@ export const AiHandler = {
           age,
           ethnicity,
           userId: USER,
-          tensorPath : response_url
+          tensorPath: response_url,
         },
       });
 
@@ -44,7 +43,7 @@ export const AiHandler = {
 
       return {
         message: "AI training initiated Successfully",
-        modelId: model.id
+        modelId: model.id,
       };
     } catch (error) {
       ctx.set.status = 500;
@@ -53,8 +52,6 @@ export const AiHandler = {
       };
     }
   },
-
-
 
   //  Generating Images from Prompt and Model ID
   handleGenerateAi: async (ctx: Context) => {
@@ -67,22 +64,30 @@ export const AiHandler = {
 
       const { prompt, modelId } = parsedBody.data;
 
+      const model_Id = await prismaClient.model.findUnique({
+        where: {
+          id: modelId,
+        },
+      });
+
       const { request_id, status, response_url } =
         await falAimodel.generateImage(prompt, modelId);
 
-      const data = await fal.queue.result("fal-ai/flux-lora", {
-        requestId: request_id,
-      });
+      // const data = await fal.queue.result("fal-ai/flux-lora", {
+      //   requestId: request_id,
+      // });
 
-      console.log(data);
-      console.log(data.data);
+      // console.log(data);
+      // console.log(data.data);
+
       const result = await prismaClient.generatedImages.create({
         data: {
-          modelId,
+          modelId: model_Id,
           prompt,
           userId: USER,
           image: "",
           status: status,
+          falAiRequestId: request_id,
         },
       });
 
@@ -98,7 +103,6 @@ export const AiHandler = {
       };
     }
   },
-
 
   // Generating Images from Pack ID
   handlePackGenerate: async (ctx: Context) => {
@@ -144,36 +148,32 @@ export const AiHandler = {
     }
   },
 
-
-handleGetModels: async (ctx: Context) => {
-  try {
-    const result = await prismaClient.model.findMany({
-      where: {
-        userId: USER
+  //  Getting All Models
+  handleGetModels: async (ctx: Context) => {
+    try {
+      const result = await prismaClient.model.findMany({
+        where: {
+          userId: USER,
+        },
+      });
+      if (!result) {
+        ctx.set.status = 400;
+        return {
+          message: "Unable to fetch any models",
+        };
       }
-    });
-    if(!result){
-      ctx.set.status = 400;
+      ctx.set.status = 200;
       return {
-        message : "Unable to fetch any models"
-      }
+        message: "Models fetched successfully",
+        models: result,
+      };
+    } catch (error) {
+      ctx.set.status = 500;
+      return {
+        message: "Failed to fetch models Internal Server error",
+      };
     }
-    ctx.set.status = 200;
-    return {
-      message : "Models fetched successfully",
-      models : result
-    }
-  } catch (error) {
-    ctx.set.status = 500;
-    return {
-      message : "Failed to fetch models Internal Server error"
-    }
-  }
-
-},
-
-    
-
+  },
 
   // Getting All Packs
   handleGetPacks: async (ctx: Context) => {
@@ -197,7 +197,6 @@ handleGetModels: async (ctx: Context) => {
       };
     }
   },
-
 
   // Getting Generated Images
   handleGetImage: async (ctx: Context) => {
@@ -231,15 +230,15 @@ handleGetModels: async (ctx: Context) => {
     };
   },
 
-
-
-
   // Webhook Handler for Modle training it will hit once the model training is completed and it will return a request id or say tensor path add this to model table's tensor path column
-  // first check the ctx and add the relevant data 
-
+  // first check the ctx and add the relevant data
   handleModelWebhook: async (ctx: Context) => {
     try {
+        console.log("====================Received training webhook====================");
       const body = ctx.body;
+      
+
+
       console.log("Webhook received:", body);
       ctx.set.status = 200;
       return { message: "Webhook processed successfully" };
@@ -248,21 +247,49 @@ handleGetModels: async (ctx: Context) => {
       return { message: "Failed to process webhook" };
     }
   },
-
+  
   // Webhook Handler for Image generation it will hit once the image generation is completed and it will return a request id or say image path add this to generated images table's image column
-  // first check the ctx and then add the relevant data 
-  handleImageWebhook: async (ctx: Context) => {
-    try {
-      const body = ctx.body;
-      console.log("Webhook received:", body);
-      ctx.set.status = 200;
-      return { message: "Webhook processed successfully" };
-    } catch (error) {
-      ctx.set.status = 500;
-      return { message: "Failed to process webhook" };
-    }
-  },
-
-
-
+  // first check the ctx and then add the relevant data
+  
+    handleImageWebhook: async (ctx: Context) => {
+  
+      try {
+        console.log("====================Received Image Generation Webhook====================");
+        const body = ctx.body;
+        const requestId = body.request_id;
+        if (body.status == "ERROR") {
+          ctx.set.status = 400;
+  
+          await prismaClient.generatedImages.updateMany({
+            where: {
+              falAiImageRequestId: requestId,
+            },
+            data: {
+              status: "COMPLETED",
+              image: body.payload.images[0].url,
+            },
+          });
+          return {
+            message: "Failed to Generate image FalAi Error",
+          };
+        }
+  
+        ctx.set.status = 200;
+        await prismaClient.generatedImages.updateMany({
+          where: {
+            falAiImageRequestId: requestId,
+          },
+          data: {
+            status: "COMPLETED",
+            image: body.payload.images[0].url,
+          },
+        });
+  
+        console.log("Webhook received:", body);
+        return { message: "Webhook processed successfully" };
+      } catch (error) {
+        ctx.set.status = 500;
+        return { message: "Internal Server Error Failed to process webhook" };
+      }
+    },
 };

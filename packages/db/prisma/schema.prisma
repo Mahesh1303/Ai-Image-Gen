@@ -25,8 +25,7 @@ enum ModelEthnicity {
   asian
 }
 
-
-    // status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED";
+// status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED";
 
 enum Status {
   IN_QUEUE
@@ -47,34 +46,38 @@ model User {
 model Model {
   id              String            @id @default(uuid())
   name            String
+  falAiModelRequestId String
   type            ModelType
   age             Int
   ethnicity       ModelEthnicity
-  images          TrainingImages[]
-  GeneratedImages GeneratedImages[]
+  zipUrl          String
+  generatedImages GeneratedImages[]
   userId          String
   tensorPath      String
   User            User              @relation(fields: [userId], references: [id])
 }
 
-model TrainingImages {
-  id      String  @id @default(uuid())
-  image   String
-  modelId String?
-  model   Model?  @relation(fields: [modelId], references: [id])
-}
+// model TrainingImages {
+//   id      String  @id @default(uuid())
+//   image   String
+//   modelId String?
+//   model   Model?  @relation(fields: [modelId], references: [id])
+// }
 
 model GeneratedImages {
-  id      String @id @default(uuid())
-  image   String
-  prompt  String
-  modelId String
-  userId  String
-  status  Status
-  model   Model  @relation(fields: [modelId], references: [id])
-  user    User   @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  id             String   @id @default(uuid())
+  image          String
+  prompt         String
+  modelId        String
+  userId         String
+  status         Status
+  falAiImageRequestId String?
+  model          Model    @relation(fields: [modelId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+
+  @@index([falAiImageRequestId])
 }
 
 model Packs {
@@ -91,7 +94,7 @@ model Prompts {
   pack    Packs  @relation(fields: [packId], references: [id])
 }
 
-// So firstly create a model that is train model using that Model Db thing you created  u give the images to it to train the model 
+// So firstly create a model that is train model using thaixt Model Db thing you created  u give the images to it to train the model 
 // after traing the model the model is generated we need to created different models because there could be diff persons 
 // then we give prompt after selecting the model and it will generate images based on that model
 
